@@ -5,13 +5,15 @@ class MyTelegramBot extends HtmlTelegramBot {
     constructor(token) {
         super(token);
         this.mode = null;
-        this.list = []
+        this.list = [];
+        this.user = {};
+        this.counter = 0;
     }
 
     async start(message) {
         this.mode = "main";
-        const text = this.loadMessage('main')
-        await this.sendImage('main')
+        const text = this.loadMessage('main');
+        await this.sendImage('main');
         await this.sendText(text);
 
         //add menu
@@ -35,8 +37,13 @@ class MyTelegramBot extends HtmlTelegramBot {
             await this.dateDialog(message);
         } else if (this.mode === 'message') {
             await this.messageDialog(message);
-        } else {
-            const text = message.text
+        } else if (this.mode === 'profile') {
+            await this.profileDialog(message);
+        } else if (this.mode === 'opener') {
+            await this.openerDialog(message);
+        }
+        else {
+            const text = message.text;
             await this.sendText('<b>Привед</b>');
             await this.sendText('<i>Как оно?</i>');
             await this.sendText(`Ты написал: ${text}`);
@@ -121,7 +128,8 @@ class MyTelegramBot extends HtmlTelegramBot {
         await this.sendTextButtons(text, {
             'message_next': 'Сдедующее сообщение',
             'message_date': 'Пригласить на свидание'
-        })
+        });
+        this.list = []
     }
 
     async messageButton(callbackQuery) {
@@ -138,6 +146,96 @@ class MyTelegramBot extends HtmlTelegramBot {
         const text = message.text;
         this.list.push(text);
     }
+
+    async profile(message) {
+        this.mode = 'profile';
+        const text =this.loadMessage('profile');
+        await this.sendImage('profile');
+        await this.sendText(text);
+
+        this.user = {};
+
+
+        await this.sendText('Сколько лет?');
+    }
+
+    async profileDialog(message) {
+        const text = message.text;
+        this.counter++;
+
+        if(this.counter === 1){
+            this.user['age'] = text;
+            await this.sendText('Кем работаешь?');
+        }
+        if(this.counter === 2){
+            this.user['occupation'] = text;
+            await this.sendText('Какое у тебя хобби?');
+        }
+        if(this.counter === 3){
+            this.user['hobby'] = text;
+            await this.sendText('Чем тебя бесят люди?');
+        }
+        if(this.counter === 4){
+            this.user['annoys'] = text;
+            await this.sendText('Цель знакомства?');
+        }
+        if(this.counter === 5){
+            this.user['goals'] = text;
+
+            const prompt = this.loadPrompt('profile');
+            const info = userInfoToString(this.user);
+
+            const myMessage = await this.sendText('ChatGPT думает...');
+            const answer = await chatGpt.sendQuestion(prompt, info);
+            await this.editText(myMessage, answer);
+        }
+    }
+
+    async opener(message){
+        this.mode = 'opener';
+
+        const text =this.loadMessage('opener');
+        await this.sendImage('opener');
+        await this.sendText(text);
+
+        this.user = {};
+        this.counter = 0;
+        await this.sendText('Имя партнера?');
+
+    }
+
+    async openerDialog(message){
+        const text = message.text;
+        this.counter++;
+
+        if(this.counter === 1){
+            this.user['name'] = text;
+            await this.sendText('Сколько лет партнеру?');
+        }
+        if(this.counter === 2){
+            this.user['age'] = text;
+            await this.sendText('Внешность партнера: 1-10?');
+        }
+        if(this.counter === 3){
+            this.user['handsome'] = text;
+            await this.sendText('Кем работает партнер?');
+        }
+        if(this.counter === 4){
+            this.user['occupation'] = text;
+            await this.sendText('Цель знакомства?');
+        }
+        if(this.counter === 5){
+            this.user['goals'] = text;
+
+            const prompt = this.loadPrompt('opener');
+            const info = userInfoToString(this.user);
+
+            const myMessage = await this.sendText('ChatGPT генерирует твой опенер...');
+            const answer = await chatGpt.sendQuestion(prompt, info);
+            await this.editText(myMessage, answer);
+        }
+
+    }
 }
 
 const chatGpt = new ChatGptService("gpt:h4CQINi3RUNETJprJI4HJFkblB3TYAWTNapKtwbtLBVoSgEz")
@@ -147,6 +245,8 @@ bot.onCommand(/\/html/, bot.html); // /html
 bot.onCommand(/\/gpt/, bot.gpt); // /gpt
 bot.onCommand(/\/date/, bot.date); // /date
 bot.onCommand(/\/message/, bot.message); // /message
+bot.onCommand(/\/profile/, bot.profile); // /profile - если пользователь наберет эту команду то вызовится функция bot.profile
+bot.onCommand(/\/opener/, bot.opener);
 
 bot.onTextMessage(bot.hello);
 bot.onButtonCallback(/^date_.*/, bot.dateButton) // Все строки которые начинаются с date_, . значит любой символ, * значит любое колличество любых символов
